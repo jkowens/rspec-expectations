@@ -33,6 +33,12 @@ RSpec.describe "expect(...).to respond_to(:sym).with(1).argument" do
     expect(obj).to respond_to(:foo).with(1).argument
   end
 
+  it "verifes the method signature of new as if it was initialize" do
+    klass = Class.new { def initialize(a, b); end; }
+    expect(klass).to respond_to(:new).with(2).arguments
+    expect(klass).to_not respond_to(:new).with(1).argument
+  end
+
   it "fails if target does not respond to :sym" do
     obj = Object.new
     expect {
@@ -216,6 +222,13 @@ RSpec.describe "expect(...).to respond_to(:sym).with(1..2).arguments" do
       expect(obj).to respond_to(:foo).with(1..2).arguments
     }.to fail_with(/expected #<Object.*> to respond to :foo with 1..2 arguments/)
   end
+
+  it "fails when new unless initialize matches the signature" do
+    klass = Class.new { def initialize(arg, arg2, arg3, *args); end }
+    expect {
+      expect(klass).to respond_to(:new).with(1..2).arguments
+    }.to fail_with(/expected #<Class.*> to respond to :new with 1..2 arguments/)
+  end
 end
 
 RSpec.describe "expect(...).to respond_to(:sym).with_unlimited_arguments" do
@@ -229,6 +242,15 @@ RSpec.describe "expect(...).to respond_to(:sym).with_unlimited_arguments" do
     obj = Object.new
     def obj.foo(arg, arg2, arg3, *args); end
     expect(obj).to respond_to(:foo).with(3).arguments.and_unlimited_arguments
+  end
+
+  it "passes when target is new and initialize responds to any number of aguments" do
+    klass = Class.new { def initialize(a); end }
+    expect(klass).to_not respond_to(:new).with_unlimited_arguments
+
+    # note we can't use the metaobject definition for initialize
+    klass_2 = Class.new { def initialize(*args); end }
+    expect(klass_2).to respond_to(:new).with_unlimited_arguments
   end
 
   it "fails if target does not respond to :sym" do
@@ -491,6 +513,16 @@ if RSpec::Support::RubyFeatures.kw_args_supported?
       obj = Object.new
       eval %{def obj.foo(**kw_args); end}
       expect(obj).to respond_to(:foo).with_keywords(:a, :b)
+    end
+
+    it 'passes if target is :new with keywords' do
+      # note we can't use the metaobject definition for initialize
+      klass = eval %{Class.new { def initialize(a: nil, b: nil); end}}
+      expect(klass).to respond_to(:new).with_keywords(:a, :b)
+
+      # note we can't use the metaobject definition for initialize
+      klass_2 = eval %{Class.new { def initialize(**kw_args); end}}
+      expect(klass_2).to respond_to(:new).with_keywords(:a, :b)
     end
 
     it "fails if target does not respond to :sym" do

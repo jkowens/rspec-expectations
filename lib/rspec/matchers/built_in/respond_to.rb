@@ -125,7 +125,14 @@ module RSpec
 
           return true if expectation.empty?
 
-          signature = Support::MethodSignature.new(Support.method_handle_for(actual, name))
+          method_handle = Support.method_handle_for(actual, name)
+
+          signature =
+            if name == :new && method_handle.owner === ::Class && ::Class === actual
+              Support::MethodSignature.new(actual.instance_method(:initialize))
+            else
+              Support::MethodSignature.new(method_handle)
+            end
 
           Support::StrictSignatureVerifier.new(signature).with_expectation(expectation).valid?
         end
